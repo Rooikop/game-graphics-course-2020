@@ -20,78 +20,78 @@ import {mat4, vec3, vec4} from "../node_modules/gl-matrix/esm/index.js";
 
 const positions = new Float32Array([
     // front
-    -0.5, 0.5, 0.5,
-    0.5, 0.5, 0.5,
-    0.5, -0.5, 0.5,
-    -0.5, -0.5, 0.5,
+    0.6, -0.7, -0.4,
+    0.6, 0.7, 0.4,
+    -0.6, 0.7, -0.4,
+    -0.6, -0.7, 0.4,
 
     // back
-    -0.5, 0.5, -0.5,
-    0.5, 0.5, -0.5,
-    0.5, -0.5, -0.5,
-    -0.5, -0.5, -0.5,
+    0.6, -0.7, 0.4,
+    0.6, 0.7, -0.4,
+    -0.6, 0.7, 0.4,
+    -0.6, -0.7, -0.4,
 
     //top
-    -0.5, 0.5, 0.5,
-    0.5, 0.5, 0.5,
-    0.5, 0.5, -0.5,
-    -0.5, 0.5, -0.5,
+    0.6, -0.7, -0.4,
+    0.6, 0.7, 0.4,
+    -0.6, -0.7, 0.4,
+    -0.6, 0.7, -0.4,
 
     //bottom
-    -0.5, -0.5, 0.5,
-    0.5, -0.5, 0.5,
-    0.5, -0.5, -0.5,
-    -0.5, -0.5, -0.5,
+    0.6, 0.7, -0.4,
+    0.6, -0.7, 0.4,
+    -0.6, 0.7, 0.4,
+    -0.6, -0.7, -0.4,
 
     //left
-    -0.5, -0.5, 0.5,
-    -0.5, 0.5, 0.5,
-    -0.5, 0.5, -0.5,
-    -0.5, -0.5, -0.5,
+    0.6, 0.7, -0.4,
+    -0.6, 0.7, 0.4,
+    0.6, -0.7, 0.4,
+    -0.6, -0.7, -0.4,
 
     //right
-    0.5, -0.5, 0.5,
-    0.5, 0.5, 0.5,
-    0.5, 0.5, -0.5,
-    0.5, -0.5, -0.5,
+    -0.6, 0.7, -0.4,
+    0.6, 0.7, 0.4,
+    -0.6, -0.7, 0.4,
+    0.6, -0.7, -0.4,
 ]);
 
 const normals = new Float32Array([
     // front
-    0.0, 0.0, 1.0,
-    0.0, 0.0, 1.0,
-    0.0, 0.0, 1.0,
-    0.0, 0.0, 1.0,
+    0.2, 0.2, 3.0,
+    0.2, 0.2, 3.0,
+    0.2, 0.2, 3.0,
+    0.2, 0.2, 3.0,
 
     // back
-    0.0, 0.0, -1.0,
-    0.0, 0.0, -1.0,
-    0.0, 0.0, -1.0,
-    0.0, 0.0, -1.0,
+    0.2, 0.2, -3.0,
+    0.2, 0.2, -3.0,
+    0.2, 0.2, -3.0,
+    0.2, 0.2, -3.0,
 
     //top
-    0.0, 1.0, 0.0,
-    0.0, 1.0, 0.0,
-    0.0, 1.0, 0.0,
-    0.0, 1.0, 0.0,
+    0.2, 3.0, 0.2,
+    0.2, 3.0, 0.2,
+    0.2, 3.0, 0.2,
+    0.2, 3.0, 0.2,
 
     //bottom
-    0.0, -1.0, 0.0,
-    0.0, -1.0, 0.0,
-    0.0, -1.0, 0.0,
-    0.0, -1.0, 0.0,
+    0.2, -3.0, 0.2,
+    0.2, -3.0, 0.2,
+    0.2, -3.0, 0.2,
+    0.2, -3.0, 0.2,
 
     //left
-    -1.0, 0.0, 0.0,
-    -1.0, 0.0, 0.0,
-    -1.0, 0.0, 0.0,
-    -1.0, 0.0, 0.0,
+    -3.0, 0.2, 0.2,
+    -3.0, 0.2, 0.2,
+    -3.0, 0.2, 0.2,
+    -3.0, 0.2, 0.2,,
 
     //right
-    1.0, 0.0, 0.0,
-    1.0, 0.0, 0.0,
-    1.0, 0.0, 0.0,
-    1.0, 0.0, 0.0,
+    3.0, 0.2, 0.2,
+    3.0, 0.2, 0.2,
+    3.0, 0.2, 0.2,
+    3.0, 0.2, 0.2,
 ]);
 
 const indices = new Uint16Array([
@@ -161,7 +161,7 @@ let vertexShader = `
     
     void main()
     {
-        gl_Position = modelViewProjectionMatrix * vec4(position, 1.0);
+        gl_Position = modelViewProjectionMatrix * vec4(position, 4.0);
         vec3 viewNormal = (modelViewMatrix * vec4(normal, 0.0)).xyz;
         color = mix(bgColor * 0.8, fgColor, viewNormal.z) + pow(viewNormal.z, 20.0);
     }
@@ -172,8 +172,8 @@ let vertexShader = `
 // **             Application processing               **
 // ******************************************************
 
-let bgColor = vec4.fromValues(1.0, 0.2, 0.3, 1.0);
-let fgColor = vec4.fromValues(1.0, 0.9, 0.5, 1.0);
+let bgColor = vec4.fromValues(0.2, 0.7, 0.7, 0.3);
+let fgColor = vec4.fromValues(0.1, 0.0, 0.1, 0.0);
 
 
 app.clearColor(bgColor[0], bgColor[1], bgColor[2], bgColor[3])
@@ -200,15 +200,15 @@ let drawCall = app.createDrawCall(program, vertexArray)
     .uniform("bgColor", bgColor)
     .uniform("fgColor", fgColor);
 
-let startTime = new Date().getTime() / 1000;
+let startTime = new Date().getTime() / 2500;
 
 
 
 function draw() {
-    let time = new Date().getTime() / 1000 - startTime;
+    let time = new Date().getTime() / 2500 - startTime;
 
-    mat4.perspective(projMatrix, Math.PI / 4, app.width / app.height, 0.1, 100.0);
-    mat4.lookAt(viewMatrix, vec3.fromValues(3, 0, 2), vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
+    mat4.perspective(projMatrix, Math.PI / 8, app.width / app.height, 1, 500.0);
+    mat4.lookAt(viewMatrix, vec3.fromValues(7, 3, 6), vec3.fromValues(4, 2, 4), vec3.fromValues(3, 1, 9));
     mat4.multiply(viewProjMatrix, projMatrix, viewMatrix);
 
     mat4.fromXRotation(rotateXMatrix, time * 0.1136);
@@ -225,5 +225,6 @@ function draw() {
     drawCall.draw();
 
     requestAnimationFrame(draw);
+    
 }
 requestAnimationFrame(draw);
