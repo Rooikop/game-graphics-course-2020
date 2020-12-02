@@ -1,16 +1,16 @@
 import PicoGL from "../node_modules/picogl/build/module/picogl.js";
 import {mat4, vec3} from "../node_modules/gl-matrix/esm/index.js";
 
-import {positions, normals, indices} from "../blender/monkey.js"
+import {positions, normals, indices} from "../blender/torus.js"
 
 // ******************************************************
 // **               Light configuration                **
 // ******************************************************
 
-let ambientLightColor = vec3.fromValues(0.05, 0.05, 0.1);
-let numberOfLights = 2;
+let ambientLightColor = vec3.fromValues(0.2, 0.8, 0.2);
+let numberOfLights = 1;
 let lightColors = [vec3.fromValues(1.0, 0.0, 0.2), vec3.fromValues(0.0, 0.1, 0.2)];
-let lightInitialPositions = [vec3.fromValues(5, 0, 2), vec3.fromValues(-5, 0, 2)];
+let lightInitialPositions = [vec3.fromValues(5, 3, 5), vec3.fromValues(-5, 0, 2)];
 let lightPositions = [vec3.create(), vec3.create()];
 
 
@@ -33,10 +33,10 @@ let lightCalculationShader = `
             float diffuse = max(dot(lightDirection, normal), 0.0);                                    
                       
             // Phong specular highlight 
-            float specular = pow(max(dot(viewDirection, reflect(-lightDirection, normal)), 0.0), 50.0);
+            //float specular = pow(max(dot(viewDirection, reflect(-lightDirection, normal)), 0.0), 50.0);
             
             // Blinn-Phong improved specular highlight                        
-            //float specular = pow(max(dot(normalize(lightDirection + viewDirection), normal), 0.0), 200.0);
+            float specular = pow(max(dot(normalize(lightDirection + viewDirection), normal), 0.0), 200.0);
             
             color.rgb += lightColors[i] * diffuse + specular;
         }
@@ -106,13 +106,15 @@ let projectionMatrix = mat4.create();
 let viewMatrix = mat4.create();
 let viewProjectionMatrix = mat4.create();
 let modelMatrix = mat4.create();
+let rotateXMatrix = mat4.create();
+let rotateYMatrix = mat4.create();
 
 let drawCall = app.createDrawCall(program, vertexArray)
     .uniform("ambientLightColor", ambientLightColor);
 
 let startTime = new Date().getTime() / 1000;
 
-let cameraPosition = vec3.fromValues(0, 0, 5);
+let cameraPosition = vec3.fromValues(0, 2, 7);
 mat4.fromXRotation(modelMatrix, -Math.PI / 2);
 
 const positionsBuffer = new Float32Array(numberOfLights * 3);
@@ -122,15 +124,20 @@ function draw() {
     let time = new Date().getTime() / 1000 - startTime;
 
     mat4.perspective(projectionMatrix, Math.PI / 4, app.width / app.height, 0.1, 100.0);
+    let camPos = vec3.rotateY(vec3.create(), vec3.fromValues(0, 1.5, 2), vec3.fromValues(2, 1, 3), time * 0.5);
     mat4.lookAt(viewMatrix, cameraPosition, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
     mat4.multiply(viewProjectionMatrix, projectionMatrix, viewMatrix);
+
+    mat4.fromXRotation(rotateXMatrix, time * 0.1136);
+    mat4.fromZRotation(rotateYMatrix, time * 0.2235);
+    mat4.multiply(modelMatrix, rotateXMatrix, rotateYMatrix);
 
     drawCall.uniform("viewProjectionMatrix", viewProjectionMatrix);
     drawCall.uniform("modelMatrix", modelMatrix);
     drawCall.uniform("cameraPosition", cameraPosition);
 
     for (let i = 0; i < numberOfLights; i++) {
-        vec3.rotateZ(lightPositions[i], lightInitialPositions[i], vec3.fromValues(0, 0, 0), time);
+        vec3.rotateZ(lightPositions[i], lightInitialPositions[i], vec3.fromValues(2, 0, 1), time);
         positionsBuffer.set(lightPositions[i], i * 3);
         colorsBuffer.set(lightColors[i], i * 3);
     }
