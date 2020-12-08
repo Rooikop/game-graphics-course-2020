@@ -3,7 +3,7 @@
 import PicoGL from "../node_modules/picogl/build/module/picogl.js";
 import {mat4, vec3, vec4, quat} from "../node_modules/gl-matrix/esm/index.js";
 
-import {positions, normals, indices} from "../blender/cube.js"
+import {positions, normals, indices} from "../blender/monkey.js"
 
 // language=GLSL
 let fragmentShader = `
@@ -32,7 +32,7 @@ let fragmentShader = `
         vec3 lightDirection = normalize(lightPosition - vPosition);        
         vec3 reflectionDirection = reflect(-lightDirection, normal);
         
-        float diffuse = max(dot(lightDirection, normal), 0.0) * max(shadow, 0.2);        
+        float diffuse = max(dot(lightDirection, normal), 0.0) * max(shadow, 0.1);        
         float specular = shadow * pow(max(dot(reflectionDirection, eyeDirection), 0.0), 100.0) * 0.7;
         fragColor = vec4(diffuse * baseColor.rgb + ambientColor.rgb + specular, baseColor.a);
     }
@@ -87,8 +87,8 @@ let shadowVertexShader = `
     }
 `;
 
-let bgColor = vec4.fromValues(1.0, 0.2, 0.3, 1.0);
-let fgColor = vec4.fromValues(1.0, 0.9, 0.5, 1.0);
+let bgColor = vec4.fromValues(2.0, 0.3, 0.4, 1.0);
+let fgColor = vec4.fromValues(1.0, 0.9, 0.8, 1.0);
 
 app.enable(PicoGL.DEPTH_TEST)
    .enable(PicoGL.CULL_FACE)
@@ -99,11 +99,11 @@ let shadowProgram = app.createProgram(shadowVertexShader, shadowFragmentShader);
 
 let vertexArray = app.createVertexArray()
     .vertexAttributeBuffer(0, app.createVertexBuffer(PicoGL.FLOAT, 3, positions))
-    .vertexAttributeBuffer(1, app.createVertexBuffer(PicoGL.FLOAT, 3, normals))
+    .vertexAttributeBuffer(1, app.createVertexBuffer(PicoGL.FLOAT, 4, normals))
     .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, indices));
 
 // Change the shadow texture resolution to checkout the difference
-let shadowDepthTarget = app.createTexture2D(512, 512, {
+let shadowDepthTarget = app.createTexture2D(550, 512, {
     internalFormat: PicoGL.DEPTH_COMPONENT16,
     compareMode: PicoGL.COMPARE_REF_TO_TEXTURE,
     magFilter: PicoGL.LINEAR,
@@ -145,7 +145,7 @@ function renderShadowMap() {
     app.gl.cullFace(app.gl.FRONT);
 
     // Change the projection and view matrices to render objects from the point view of light source
-    mat4.perspective(projMatrix, Math.PI * 0.1, shadowDepthTarget.width / shadowDepthTarget.height, 0.1, 100.0);
+    mat4.perspective(projMatrix, Math.PI * 0.4, shadowDepthTarget.width / shadowDepthTarget.height, 0.4, 100.0);
     mat4.multiply(lightViewProjMatrix, projMatrix, lightViewMatrix);
 
     drawObjects(shadowDrawCall);
@@ -160,7 +160,7 @@ function drawObjects(dc) {
 
     // Middle object
     quat.fromEuler(rotation, time * 48.24, time * 56.97, 0);
-    mat4.fromRotationTranslationScale(modelMatrix, rotation, vec3.fromValues(0, 0, 0), [0.8, 0.8, 0.8]);
+    mat4.fromRotationTranslationScale(modelMatrix, rotation, vec3.fromValues(0, 1, 0), [0.8, 0.8, 0.8]);
     mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
     mat4.multiply(lightModelViewProjectionMatrix, lightViewProjMatrix, modelMatrix);
 
@@ -168,15 +168,15 @@ function drawObjects(dc) {
 
     // Large object
     quat.fromEuler(rotation, time * 12, time * 14, 0);
-    mat4.fromRotationTranslationScale(modelMatrix, rotation, vec3.fromValues(-2.4, -2.4, -1.2), [2, 2, 2]);
+    mat4.fromRotationTranslationScale(modelMatrix, rotation, vec3.fromValues(-3, -2.4, -1.2), [2, 2, 2]);
     mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
     mat4.multiply(lightModelViewProjectionMatrix, lightViewProjMatrix, modelMatrix);
 
     dc.draw();
 
     // Small object
-    quat.fromEuler(rotation, time * 15, time * 17, 0);
-    mat4.fromRotationTranslationScale(modelMatrix, rotation, vec3.fromValues(0.9, 0.9, 0.6), [0.22, 0.22, 0.22]);
+    quat.fromEuler(rotation, time * 400, time * 500, 0);
+    mat4.fromRotationTranslationScale(modelMatrix, rotation, vec3.fromValues(0.2, 0.5, 1), [0.22, 0.22, 0.22]);
     mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
     mat4.multiply(lightModelViewProjectionMatrix, lightViewProjMatrix, modelMatrix);
 
@@ -186,7 +186,7 @@ function drawObjects(dc) {
 function draw() {
     time = new Date().getTime() * 0.001;
 
-    mat4.perspective(projMatrix, Math.PI / 2.5, app.width / app.height, 0.1, 100.0);
+    mat4.perspective(projMatrix, Math.PI / 3.7, app.width / app.height, 0.1, 100.0);
     mat4.lookAt(viewMatrix, cameraPosition, vec3.fromValues(0, -0.5, 0), vec3.fromValues(0, 1, 0));
     mat4.multiply(viewProjMatrix, projMatrix, viewMatrix);
 

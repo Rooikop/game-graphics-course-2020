@@ -1,7 +1,7 @@
 import PicoGL from "../node_modules/picogl/build/module/picogl.js";
 import {mat4, vec3, vec4, quat} from "../node_modules/gl-matrix/esm/index.js";
 
-import {positions, normals, indices} from "../blender/monkey.js"
+import {positions, normals, indices} from "../blender/cube.js"
 
 let postPositions = new Float32Array([
     0.0, 1.0,
@@ -128,7 +128,7 @@ let postVertexShader = `
 
 
 let bgColor = vec4.fromValues(0.1, 0.1, 0.1, 1.0);
-let fgColor = vec4.fromValues(1.0, 0.9, 0.5, 1.0);
+let fgColor = vec4.fromValues(2.0, 0.9, 0.9, 1.0);
 app.clearColor(bgColor[0], bgColor[1], bgColor[2], bgColor[3]);
 
 let program = app.createProgram(vertexShader.trim(), fragmentShader.trim());
