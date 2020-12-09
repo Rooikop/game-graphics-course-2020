@@ -6,6 +6,12 @@ import {mat4, vec3, mat3, vec4, vec2} from "../node_modules/gl-matrix/esm/index.
 import {positions, normals, indices} from "../blender/cube.js"
 import {positions as mirrorPositions, uvs as mirrorUvs, indices as mirrorIndices} from "../blender/plane.js"
 
+let ambientLightColor = vec3.fromValues(0.05, 0.05, 0.1);
+let numberOfLights = 2;
+let lightColors = [vec3.fromValues(1.0, 0.0, 0.2), vec3.fromValues(0.0, 0.1, 0.2)];
+let lightInitialPositions = [vec3.fromValues(5, 0, 2), vec3.fromValues(-5, 0, 2)];
+let lightPositions = [vec3.create(), vec3.create()];
+
 let skyboxPositions = new Float32Array([
     -1.0, 1.0, 1.0,
     1.0, 1.0, 1.0,
@@ -20,21 +26,56 @@ let skyboxTriangles = new Uint16Array([
 
 
 // language=GLSL
+let lightCalculationShader = `
+    uniform vec3 cameraPosition;
+    uniform vec3 ambientLightColor;    
+    uniform vec3 lightColors[${numberOfLights}];        
+    uniform vec3 lightPositions[${numberOfLights}];
+    
+    // This function calculates light reflection using Phong reflection model (ambient + diffuse + specular)
+    vec4 calculateLights(vec3 normal, vec3 position) {
+        vec3 viewDirection = normalize(cameraPosition.xyz - position);
+        vec4 color = vec4(ambientLightColor, 1.0);
+                
+        for (int i = 0; i < lightPositions.length(); i++) {
+            vec3 lightDirection = normalize(lightPositions[i] - position);
+            
+            // Lambertian reflection (ideal diffuse of matte surfaces) is also a part of Phong model                        
+            float diffuse = max(dot(lightDirection, normal), 0.0);                                    
+                      
+            // Phong specular highlight 
+            float specular = pow(max(dot(viewDirection, reflect(-lightDirection, normal)), 0.0), 50.0);
+            
+            // Blinn-Phong improved specular highlight                        
+            //float specular = pow(max(dot(normalize(lightDirection + viewDirection), normal), 0.0), 200.0);
+            
+            color.rgb += lightColors[i] * diffuse + specular;
+        }
+        return color;
+    }
+`;
+
+// language=GLSL
 let fragmentShader = `
     #version 300 es
     precision highp float;
+    ${lightCalculationShader}  
     
     uniform samplerCube cubemap;    
         
     in vec3 vNormal;
     in vec3 viewDir;
+    in vec2 v_uv;
+    
+    in vec3 vPosition;    
+    in vec4 vColor;  
     
     out vec4 outColor;
     
     void main()
     {        
         vec3 reflectedDir = reflect(viewDir, normalize(vNormal));
-        outColor = texture(cubemap, reflectedDir);
+        outColor = calculateLights(normalize(vNormal), vPosition) + texture(cubemap, reflectedDir);
         
         // Try using a higher mipmap LOD to get a rough material effect without any performance impact
         //outColor = textureLod(cubemap, reflectedDir, 7.0);
@@ -49,6 +90,7 @@ let vertexShader = `
     uniform mat4 modelMatrix;
     uniform mat3 normalMatrix;
     uniform vec3 cameraPosition; 
+    uniform mat4 viewProjMatrix;
     
     layout(location=0) in vec4 position;
     layout(location=1) in vec3 normal;
@@ -57,9 +99,11 @@ let vertexShader = `
     out vec2 vUv;
     out vec3 vNormal;
     out vec3 viewDir;
+    out vec3 vPosition; 
     
     void main()
     {
+        
         gl_Position = modelViewProjectionMatrix * position;           
         vUv = uv;
         viewDir = (modelMatrix * position).xyz - cameraPosition;                
@@ -211,12 +255,12 @@ async function loadTexture(fileName) {
 
 (async () => {
     const cubemap = app.createCubemap({
-        negX: await loadTexture("stormydays_bk.png"),
-        posX: await loadTexture("stormydays_ft.png"),
-        negY: await loadTexture("stormydays_dn.png"),
-        posY: await loadTexture("stormydays_up.png"),
-        negZ: await loadTexture("stormydays_lf.png"),
-        posZ: await loadTexture("stormydays_rt.png")
+        negX: await loadTexture("left.png"),
+        posX: await loadTexture("right.png"),
+        negY: await loadTexture("bottom.png"),
+        posY: await loadTexture("top.png"),
+        negZ: await loadTexture("back.png"),
+        posZ: await loadTexture("front.png")
     });
 
     let drawCall = app.createDrawCall(program, vertexArray)

@@ -1,7 +1,7 @@
 import PicoGL from "../node_modules/picogl/build/module/picogl.js";
 import {mat4, vec3, vec4, quat} from "../node_modules/gl-matrix/esm/index.js";
 
-import {positions, normals, indices} from "../blender/monkey.js"
+import {positions, normals, indices} from "../blender/cube.js"
 
 let postPositions = new Float32Array([
     0.0, 1.0,
@@ -46,7 +46,7 @@ let vertexShader = `
     
     void main()
     {
-        gl_Position = modelViewProjectionMatrix * vec4(position, 1.0);
+        gl_Position = modelViewProjectionMatrix * vec4(position, 0.7);
         vViewNormal = (modelViewMatrix * vec4(normalize(normal), 0.0)).xyz;
     }
 `;
@@ -81,7 +81,7 @@ let postFragmentShader = `
         for (float u = -1.0; u <= 1.0; u += 0.2)    
             for (float v = -1.0; v <= 1.0; v += 0.2) {                
                 float diff = abs(depth - texture(depthTex, uv + vec2(u, v) * 0.01).r);                                
-                col *= 1.0 - diff * 30.0;
+                col *= 2.0 - diff * 30.0;
             }
         return col;        
     }   
@@ -97,16 +97,16 @@ let postFragmentShader = `
         // Depth of field
         col = depthOfField(col, depth, v_position.xy);
         // Noise         
-        col.rgb += (1.0 - col.rgb) * random(v_position.xy) * 0.1;
+        col.rgb += (8.0 - col.rgb) * random(v_position.xy) * 0.1;
         
         // Contrast + Brightness
-        col = pow(col, vec4(1.5)) * 2.0;
+        //col = pow(col, vec4(1.5)) * 2.0;
         
         // Color curves
-        col.rgb = col.rgb * vec3(1.2, 1.1, 1.0) + vec3(0.0, 0.05, 0.2);
+        //col.rgb = col.rgb * vec3(1.2, 1.1, 1.0) + vec3(0.0, 0.05, 0.2);
         
         // Ambient Occlusion
-        //col = ambientOcclusion(col, depth, v_position.xy);                
+        col = ambientOcclusion(col, depth, v_position.xy);                
         
         // Invert
         //col.rgb = 1.0 - col.rgb;
@@ -136,7 +136,7 @@ async function loadTexture(fileName) {
 }
 
 (async () => {
-    let bgColor = vec4.fromValues(0.1, 0.1, 0.1, 1.0);
+    let bgColor = vec4.fromValues(0, 0, 0, 0);
     app.clearColor(bgColor[0], bgColor[1], bgColor[2], bgColor[3]);
 
     let program = app.createProgram(vertexShader.trim(), fragmentShader.trim());
@@ -181,7 +181,7 @@ async function loadTexture(fileName) {
     function draw() {
         let time = new Date().getTime() / 1000 - startTime;
 
-        mat4.perspective(projectionMatrix, Math.PI / 10, app.width / app.height, 0.05, 50.0);
+        mat4.perspective(projectionMatrix, Math.PI / 13.5, app.width / app.height, 0.05, 50.0);
         mat4.lookAt(viewMatrix, cameraPosition, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
         quat.fromEuler(modelRotation, Math.cos(time * 0.5) * 20 - 90, Math.sin(time * 0.5) * 20, 0)
         mat4.multiply(viewProjMatrix, projectionMatrix, viewMatrix);
@@ -196,20 +196,20 @@ async function loadTexture(fileName) {
            .enable(PicoGL.CULL_FACE)
            .clear();
 
-        drawCall.uniform("diffuseColor", vec4.fromValues(0.3, 0.0, 1.0, 1.0));
+        drawCall.uniform("diffuseColor", vec4.fromValues(0.4, -2.2, 4, -0.2));
         mat4.fromRotationTranslation(modelMatrix, modelRotation, vec3.fromValues(-1.5, 0, -2));
         mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
         mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
         drawCall.draw();
 
-        drawCall.uniform("diffuseColor", vec4.fromValues(0.1, 1.0, 0.2, 1.0));
+        drawCall.uniform("diffuseColor", vec4.fromValues(0.4, -2.8, 4, -0.2));
         mat4.fromRotationTranslation(modelMatrix, modelRotation, vec3.fromValues(0, 0, 0));
         mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
         mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
         drawCall.draw();
 
-        drawCall.uniform("diffuseColor", vec4.fromValues(1.0, 0.0, 0.2, 1.0));
-        mat4.fromRotationTranslation(modelMatrix, modelRotation, vec3.fromValues(1.5, 0, 2));
+        drawCall.uniform("diffuseColor", vec4.fromValues(0.4, -2.5, 4, -0.2));
+        mat4.fromRotationTranslation(modelMatrix, modelRotation, vec3.fromValues(1.3, 0, -2));
         mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
         mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
         drawCall.draw();

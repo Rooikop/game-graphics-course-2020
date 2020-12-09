@@ -87,8 +87,8 @@ let shadowVertexShader = `
     }
 `;
 
-let bgColor = vec4.fromValues(2.0, 0.3, 0.4, 1.0);
-let fgColor = vec4.fromValues(1.0, 0.9, 0.8, 1.0);
+let bgColor = vec4.fromValues(0.1, 0.1, 0.1, 0.1);
+let fgColor = vec4.fromValues(0.2, 0.2, 0.2, 0.2);
 
 app.enable(PicoGL.DEPTH_TEST)
    .enable(PicoGL.CULL_FACE)
@@ -103,7 +103,7 @@ let vertexArray = app.createVertexArray()
     .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, indices));
 
 // Change the shadow texture resolution to checkout the difference
-let shadowDepthTarget = app.createTexture2D(550, 512, {
+let shadowDepthTarget = app.createTexture2D(5000, 5000, {
     internalFormat: PicoGL.DEPTH_COMPONENT16,
     compareMode: PicoGL.COMPARE_REF_TO_TEXTURE,
     magFilter: PicoGL.LINEAR,
