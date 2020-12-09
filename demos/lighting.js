@@ -9,7 +9,7 @@ import {positions, normals,uvs, indices} from "../blender/sphere.js"
 
 let ambientLightColor = vec3.fromValues(0.0, 0.0, 0.0);
 let numberOfLights = 2;
-let lightColors = [vec3.fromValues(0.5, 0.0, 3), vec3.fromValues(0.0, 0.1, 0.2)];
+let lightColors = [vec3.fromValues(0.5, 1, 4.5), vec3.fromValues(1, 0.3, 1.5)];
 let lightInitialPositions = [vec3.fromValues(10, 0, 2), vec3.fromValues(-5, 0, 2)];
 let lightPositions = [vec3.create(), vec3.create()];
 
@@ -45,10 +45,10 @@ let lightCalculationShader = `
             float diffuse = max(dot(lightDirection, normal), 0.0);                                    
                       
             // Phong specular highlight 
-            //float specular = pow(max(dot(viewDirection, reflect(-lightDirection, normal)), 0.0), 50.0);
+            float specular = pow(max(dot(viewDirection, reflect(-lightDirection, normal)), 0.0), 50.0);
             
             // Blinn-Phong improved specular highlight                        
-            float specular = pow(max(dot(normalize(lightDirection + viewDirection), normal), 0.0), 200.0);
+            //float specular = pow(max(dot(normalize(lightDirection + viewDirection), normal), 0.0), 200.0);
             
             color.rgb += lightColors[i] * diffuse + specular;
         }
@@ -76,7 +76,7 @@ let fragmentShader = `
     
     void main() {                      
         // For Phong shading (per-fragment) move color calculation from vertex to fragment shader
-        outColor = calculateLights(normalize(vNormal), vPosition) + texture(tex, v_uv)*0.8;
+        outColor = calculateLights(normalize(vNormal), vPosition) * texture(tex, v_uv)*0.8;
         // outColor = vColor;
     }
 `;

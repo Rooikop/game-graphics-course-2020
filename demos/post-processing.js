@@ -1,7 +1,7 @@
 import PicoGL from "../node_modules/picogl/build/module/picogl.js";
 import {mat4, vec3, vec4, quat} from "../node_modules/gl-matrix/esm/index.js";
 
-import {positions, normals, indices} from "../blender/cube.js"
+import {positions, normals, indices} from "../blender/monkey.js"
 
 let postPositions = new Float32Array([
     0.0, 1.0,
@@ -19,14 +19,16 @@ let postIndices = new Uint16Array([
 // language=GLSL
 let fragmentShader = `
     #version 300 es
-    precision highp float;            
+    precision highp float;
+    uniform vec4 ambientColor;
+    uniform vec4 diffuseColor;
     
-    in vec4 color;
+    in vec3 vViewNormal;
     
     out vec4 outColor;       
     
     void main() {                      
-        outColor = color;
+        outColor =  + pow(vViewNormal.y, 5.0) + diffuseColor * abs(vViewNormal.y) + ambientColor;
     }
 `;
 
@@ -34,21 +36,18 @@ let fragmentShader = `
 let vertexShader = `
     #version 300 es
     
-    uniform vec4 ambientColor;
-    uniform vec4 diffuseColor;
     uniform mat4 modelViewMatrix;
     uniform mat4 modelViewProjectionMatrix;
     
     layout(location=0) in vec3 position;
     layout(location=1) in vec3 normal;
     
-    out vec4 color;
+    out vec3 vViewNormal;
     
     void main()
     {
         gl_Position = modelViewProjectionMatrix * vec4(position, 1.0);
-        vec3 viewNormal = (modelViewMatrix * vec4(normalize(normal), 0.0)).xyz;
-        color = diffuseColor * clamp(viewNormal.y, 0.0, 1.0) + ambientColor;
+        vViewNormal = (modelViewMatrix * vec4(normalize(normal), 0.0)).xyz;
     }
 `;
 
@@ -60,6 +59,7 @@ let postFragmentShader = `
     uniform sampler2D tex;
     uniform sampler2D depthTex;
     uniform float time;
+    uniform sampler2D noiseTex;
     
     in vec4 v_position;
     
@@ -70,7 +70,7 @@ let postFragmentShader = `
         float n = 0.0;
         for (float u = -1.0; u <= 1.0; u += 0.2)    
             for (float v = -1.0; v <= 1.0; v += 0.2) {
-                float factor = clamp((depth - 0.992) * 200.0, 0.0, 1.0);
+                float factor = clamp((depth - 0.993) * 200.0, 0.0, 1.0);
                 blur += texture(tex, uv + vec2(u, v) * factor * 0.02);
                 n += 1.0;
             }                
@@ -86,8 +86,8 @@ let postFragmentShader = `
         return col;        
     }   
     
-    float random(vec3 seed) {
-        return fract(dot(seed, vec3(12.23423, 65.4336, 97.45356)));
+    float random(vec2 seed) {
+        return texture(noiseTex, seed * 5.0 + sin(time * 543.12) * 54.12).r - 0.5;
     } 
     
     void main() {
@@ -96,6 +96,14 @@ let postFragmentShader = `
         
         // Depth of field
         col = depthOfField(col, depth, v_position.xy);
+        // Noise         
+        col.rgb += (1.0 - col.rgb) * random(v_position.xy) * 0.1;
+        
+        // Contrast + Brightness
+        col = pow(col, vec4(1.5)) * 2.0;
+        
+        // Color curves
+        col.rgb = col.rgb * vec3(1.2, 1.1, 1.0) + vec3(0.0, 0.05, 0.2);
         
         // Ambient Occlusion
         //col = ambientOcclusion(col, depth, v_position.xy);                
@@ -104,10 +112,7 @@ let postFragmentShader = `
         //col.rgb = 1.0 - col.rgb;
         
         // Fog
-        //col.rgb = col.rgb + vec3((depth - 0.992) * 200.0);
-        
-        // Noise
-        //col.rgb *= random(v_position.xyz * time) * 2.0;                
+        //col.rgb = col.rgb + vec3((depth - 0.992) * 200.0);         
                         
         outColor = col;
     }
@@ -126,86 +131,98 @@ let postVertexShader = `
     }
 `;
 
-
-let bgColor = vec4.fromValues(0.1, 0.1, 0.1, 1.0);
-let fgColor = vec4.fromValues(2.0, 0.9, 0.9, 1.0);
-app.clearColor(bgColor[0], bgColor[1], bgColor[2], bgColor[3]);
-
-let program = app.createProgram(vertexShader.trim(), fragmentShader.trim());
-let postProgram = app.createProgram(postVertexShader.trim(), postFragmentShader.trim());
-
-let vertexArray = app.createVertexArray()
-    .vertexAttributeBuffer(0, app.createVertexBuffer(PicoGL.FLOAT, 3, positions))
-    .vertexAttributeBuffer(1, app.createVertexBuffer(PicoGL.FLOAT, 3, normals))
-    .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, indices));
-
-let postArray = app.createVertexArray()
-    .vertexAttributeBuffer(0, app.createVertexBuffer(PicoGL.FLOAT, 2, postPositions))
-    .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, postIndices));
-
-let colorTarget = app.createTexture2D(app.width, app.height, {magFilter: PicoGL.LINEAR, wrapS: PicoGL.CLAMP_TO_EDGE, wrapR: PicoGL.CLAMP_TO_EDGE});
-let depthTarget = app.createTexture2D(app.width, app.height, {format: PicoGL.DEPTH_COMPONENT, type: PicoGL.FLOAT});
-let buffer = app.createFramebuffer().colorTarget(0, colorTarget).depthTarget(depthTarget);
-
-let projectionMatrix = mat4.create();
-let viewMatrix = mat4.create();
-let viewProjMatrix = mat4.create();
-let modelViewMatrix = mat4.create();
-let modelViewProjectionMatrix = mat4.create();
-let modelMatrix = mat4.create();
-let modelRotation = quat.create();
-
-let drawCall = app.createDrawCall(program, vertexArray)
-    .uniform("ambientColor", bgColor)
-    .uniform("diffuseColor", fgColor)
-    .uniform("modelViewMatrix", modelViewMatrix)
-    .uniform("modelViewProjectionMatrix", modelViewProjectionMatrix);
-
-let postDrawCall = app.createDrawCall(postProgram, postArray)
-    .texture("tex", colorTarget)
-    .texture("depthTex", depthTarget);
-
-let cameraPosition = vec3.fromValues(0, 0, 8);
-
-
-let startTime = new Date().getTime() / 1000;
-
-function draw() {
-    let time = new Date().getTime() / 1000 - startTime;
-
-    mat4.perspective(projectionMatrix, Math.PI / 8, app.width / app.height, 0.05, 50.0);
-    mat4.lookAt(viewMatrix, cameraPosition, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
-    quat.fromEuler(modelRotation, Math.cos(time * 0.5) * 20 - 90, Math.sin(time * 0.5) * 20, 0)
-    mat4.multiply(viewProjMatrix, projectionMatrix, viewMatrix);
-
-    mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
-    mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
-
-    app.drawFramebuffer(buffer);
-    app.viewport(0, 0, colorTarget.width, colorTarget.height);
-
-    app.depthTest().cullBackfaces().clear();
-
-    mat4.fromRotationTranslation(modelMatrix, modelRotation, vec3.fromValues(-1.2, 0, -2));
-    mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
-    mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
-    drawCall.draw();
-    mat4.fromRotationTranslation(modelMatrix, modelRotation, vec3.fromValues(0, 0, 0));
-    mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
-    mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
-    drawCall.draw();
-    mat4.fromRotationTranslation(modelMatrix, modelRotation, vec3.fromValues(1.2, 0, 2));
-    mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
-    mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
-    drawCall.draw();
-
-    app.defaultDrawFramebuffer();
-    app.viewport(0, 0, app.width, app.height);
-
-    app.noDepthTest().drawBackfaces();
-    postDrawCall.uniform("time", time);
-    postDrawCall.draw();
-
-    requestAnimationFrame(draw);
+async function loadTexture(fileName) {
+    return await createImageBitmap(await (await fetch("images/" + fileName)).blob());
 }
-requestAnimationFrame(draw);
+
+(async () => {
+    let bgColor = vec4.fromValues(0.1, 0.1, 0.1, 1.0);
+    app.clearColor(bgColor[0], bgColor[1], bgColor[2], bgColor[3]);
+
+    let program = app.createProgram(vertexShader.trim(), fragmentShader.trim());
+    let postProgram = app.createProgram(postVertexShader.trim(), postFragmentShader.trim());
+
+    let vertexArray = app.createVertexArray()
+        .vertexAttributeBuffer(0, app.createVertexBuffer(PicoGL.FLOAT, 3, positions))
+        .vertexAttributeBuffer(1, app.createVertexBuffer(PicoGL.FLOAT, 3, normals))
+        .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, indices));
+
+    let postArray = app.createVertexArray()
+        .vertexAttributeBuffer(0, app.createVertexBuffer(PicoGL.FLOAT, 2, postPositions))
+        .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, postIndices));
+
+    let colorTarget = app.createTexture2D(app.width, app.height, {magFilter: PicoGL.LINEAR, wrapS: PicoGL.CLAMP_TO_EDGE, wrapR: PicoGL.CLAMP_TO_EDGE});
+    let depthTarget = app.createTexture2D(app.width, app.height, {internalFormat: PicoGL.DEPTH_COMPONENT32F, type: PicoGL.FLOAT});
+    let buffer = app.createFramebuffer().colorTarget(0, colorTarget).depthTarget(depthTarget);
+
+    let projectionMatrix = mat4.create();
+    let viewMatrix = mat4.create();
+    let viewProjMatrix = mat4.create();
+    let modelViewMatrix = mat4.create();
+    let modelViewProjectionMatrix = mat4.create();
+    let modelMatrix = mat4.create();
+    let modelRotation = quat.create();
+
+    let drawCall = app.createDrawCall(program, vertexArray)
+        .uniform("ambientColor", bgColor)
+        .uniform("modelViewMatrix", modelViewMatrix)
+        .uniform("modelViewProjectionMatrix", modelViewProjectionMatrix);
+
+    let postDrawCall = app.createDrawCall(postProgram, postArray)
+        .texture("tex", colorTarget)
+        .texture("depthTex", depthTarget)
+        .texture("noiseTex", app.createTexture2D(await loadTexture("noise.png")));
+
+    let cameraPosition = vec3.fromValues(0, 0, 9);
+
+
+    let startTime = new Date().getTime() / 1000;
+
+    function draw() {
+        let time = new Date().getTime() / 1000 - startTime;
+
+        mat4.perspective(projectionMatrix, Math.PI / 10, app.width / app.height, 0.05, 50.0);
+        mat4.lookAt(viewMatrix, cameraPosition, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
+        quat.fromEuler(modelRotation, Math.cos(time * 0.5) * 20 - 90, Math.sin(time * 0.5) * 20, 0)
+        mat4.multiply(viewProjMatrix, projectionMatrix, viewMatrix);
+
+        mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
+        mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
+
+        app.drawFramebuffer(buffer);
+        app.viewport(0, 0, colorTarget.width, colorTarget.height);
+
+        app.enable(PicoGL.DEPTH_TEST)
+           .enable(PicoGL.CULL_FACE)
+           .clear();
+
+        drawCall.uniform("diffuseColor", vec4.fromValues(0.3, 0.0, 1.0, 1.0));
+        mat4.fromRotationTranslation(modelMatrix, modelRotation, vec3.fromValues(-1.5, 0, -2));
+        mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
+        mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
+        drawCall.draw();
+
+        drawCall.uniform("diffuseColor", vec4.fromValues(0.1, 1.0, 0.2, 1.0));
+        mat4.fromRotationTranslation(modelMatrix, modelRotation, vec3.fromValues(0, 0, 0));
+        mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
+        mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
+        drawCall.draw();
+
+        drawCall.uniform("diffuseColor", vec4.fromValues(1.0, 0.0, 0.2, 1.0));
+        mat4.fromRotationTranslation(modelMatrix, modelRotation, vec3.fromValues(1.5, 0, 2));
+        mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
+        mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
+        drawCall.draw();
+
+        app.defaultDrawFramebuffer();
+        app.viewport(0, 0, app.width, app.height);
+
+        app.disable(PicoGL.DEPTH_TEST)
+           .disable(PicoGL.CULL_FACE);
+        postDrawCall.uniform("time", time);
+        postDrawCall.draw();
+
+        requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+})();
