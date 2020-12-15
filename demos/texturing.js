@@ -15,6 +15,7 @@ import {mat4, vec3} from "../node_modules/gl-matrix/esm/index.js";
 
 import {positions, normals, uvs, indices} from "../blender/sphere.js"
 
+//SKYBOX IS A BOX LAYERED WITH TEXTURE TO MAKE IT LOOK LIKE AN ENVIRONMENT
 const skyboxPositions = new Float32Array([
     -1.0, 1.0, 1.0,
     1.0, 1.0, 1.0,
@@ -123,6 +124,8 @@ let skyboxViewProjectionInverse = mat4.create();
 async function loadTexture(fileName) {
     return await createImageBitmap(await (await fetch("images/" + fileName)).blob());
 }
+
+//Draw calls = how many objects are being drawn to the screen. You want to keep this number down to maintain good performance.
 
 (async () => {
     const tex = await loadTexture("Earth.jpg");

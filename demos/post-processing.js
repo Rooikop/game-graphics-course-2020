@@ -16,7 +16,11 @@ let postIndices = new Uint16Array([
 ]);
 
 
-// language=GLSL
+// language=GLSL 
+//FRAGMENT COMPUTE RENDERINGS OF COLORS AND OTHER ATTRIBUTES (PIXEL SHADER)
+//IF EFFECTS WANTED, DO THAT IN FRAGMENT
+//IS DONE SECOND
+//REMEMBER THAT CALCULATING TRAINGLE VIDEO!
 let fragmentShader = `
     #version 300 es
     precision highp float;
@@ -32,7 +36,11 @@ let fragmentShader = `
     }
 `;
 
-// language=GLSL
+// language=GLSL 
+//VERTEX TRANSFORMS SHAPE POSITIONS INTO 3D DRAWING COORDINATES
+//DEFINE ALL VERTICES RED
+//IS DONE FIRST
+//REMEMBER THAT CALCULATING TRAINGLE VIDEO!
 let vertexShader = `
     #version 300 es
     
